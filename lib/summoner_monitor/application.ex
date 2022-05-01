@@ -8,6 +8,7 @@ defmodule SummonerMonitor.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      Lol.RateLimiter
       # Starts a worker by calling: SummonerMonitor.Worker.start_link(arg)
       # {SummonerMonitor.Worker, arg}
     ]
