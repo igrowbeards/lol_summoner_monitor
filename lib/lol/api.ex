@@ -8,7 +8,7 @@ defmodule Lol.Api do
 
   require Logger
 
-  alias Lol.RateLimiter
+  alias Lol.Api.RateLimiter
 
   use Tesla
 
