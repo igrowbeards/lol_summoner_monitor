@@ -45,7 +45,7 @@ defmodule Lol.Api.RateLimiter do
   end
 
   def handle_call(:under_limits?, _from, state) do
-    if state.short_count <= state.short_limit && state.long_count <= state.long_limit do
+    if state.short_count < state.short_limit && state.long_count < state.long_limit do
       {:reply, true,
        %State{state | long_count: state.long_count + 1, short_count: state.short_count + 1}}
     else
