@@ -5,79 +5,105 @@ defmodule SummonerMonitor.SummonerWatcher do
 
   alias Lol.Api
 
-  @check_interval :timer.seconds(60)
   @runtime :timer.hours(1)
+  @check_interval :timer.minutes(1)
 
   defmodule State do
     @moduledoc false
-    defstruct [:puuid, :summoner_name, :zone, jitter: 0, recent_matches: []]
+    defstruct [
+      :puuid,
+      :summoner_name,
+      :zone,
+      recent_matches: [],
+      match_check_count: 0,
+      initial_delay: 0,
+      mode: :automatic
+    ]
   end
 
   ### Client
 
-  def start_link(args) do
-    state = struct(State, args)
-
-    GenServer.start_link(__MODULE__, state)
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts, name: opts.worker_name)
   end
 
   ### Server
 
-  def init(%State{} = state) do
-    {:ok, state, {:continue, :initial_query}}
+  def init(args) do
+    {:ok, struct(State, args), {:continue, :initial_delay}}
   end
 
-  def handle_continue(:initial_query, state) do
-    :timer.sleep(state.jitter)
+  def handle_continue(:initial_delay, state) do
+    :timer.sleep(state.initial_delay)
 
-    case Api.recent_matches_for_puuid(state.puuid, state.zone, count: 1) do
-      {:ok, [most_recent_match_id]} ->
-        Process.send_after(self(), :check, @check_interval)
-        Process.send_after(self(), :done, @runtime)
+    schedule_shutdown()
 
-        {:noreply, %State{state | recent_matches: [most_recent_match_id | state.recent_matches]},
-         :hibernate}
-
-      {:error, :rate_limit_met} ->
-        {:noreply, state, {:continue, :initial_query}}
+    if state.mode == :automatic do
+      state = check_and_update_state(state)
+      schedule_next_check(state)
     end
+
+    {:noreply, state}
   end
 
-  def handle_info(:check, %State{recent_matches: []} = state) do
-    case Api.recent_matches_for_puuid(state.puuid, state.zone, count: 1) do
-      {:ok, [most_recent_match_id]} ->
-        {:noreply, %State{state | recent_matches: [most_recent_match_id | state.recent_matches]},
-         :hibernate}
-
-      {:error, :rate_limit_met} ->
-        Process.send_after(self(), :check, @check_interval)
-        {:noreply, state, :hibernate}
-    end
-  end
-
-  def handle_info(:done, state) do
-    Logger.notice("Watcher #{inspect(self())} has finished it's work and is going to bed.")
-    {:stop, :normal, state}
+  defp check_and_update_state(state) do
+    new_matches = new_matches_found(state)
+    log_new_matches(new_matches, state)
+    state = update_state(state, new_matches)
   end
 
   def handle_info(:check, state) do
+    Logger.debug("Checking for recent matches for #{state.summoner_name}...")
+    state = check_and_update_state(state)
+    if state.mode == :automatic, do: schedule_next_check(state)
+
+    {:noreply, state}
+  end
+
+  def handle_info(:done, state) do
+    Logger.debug("Worker for #{state.summoner_name} is shutting down as scheduled")
+    Process.exit(self(), :normal)
+  end
+
+  ### Private
+
+  defp update_state(state, []), do: %State{state | match_check_count: state.match_check_count + 1}
+
+  defp update_state(state, new_matches) when is_list(new_matches) do
+    %State{
+      state
+      | recent_matches: new_matches ++ [state.recent_matches],
+        match_check_count: state.match_check_count + 1
+    }
+  end
+
+  defp log_new_matches([], _), do: nil
+
+  defp log_new_matches(_, %{match_check_count: 0}), do: nil
+
+  defp log_new_matches(matches, state) when is_list(matches) do
+    Enum.each(matches, &Logger.notice("Summoner #{state.summoner_name} completed match #{&1}"))
+  end
+
+  defp schedule_next_check(state) do
+    Process.send_after(self(), :check, @check_interval)
+  end
+
+  defp schedule_shutdown do
+    Process.send_after(self(), :done, @runtime)
+  end
+
+  defp new_matches_found(state) do
     case Api.recent_matches_for_puuid(state.puuid, state.zone, count: 1) do
       {:ok, [most_recent_match_id]} ->
         if Enum.member?(state.recent_matches, most_recent_match_id) do
-          Process.send_after(self(), :check, @check_interval)
-          {:noreply, state, :hibernate}
+          []
         else
-          Logger.notice("Summoner #{state.summoner_name} completed match #{most_recent_match_id}")
-          Process.send_after(self(), :check, @check_interval)
-
-          {:noreply,
-           %State{state | recent_matches: [most_recent_match_id | state.recent_matches]},
-           :hibernate}
+          [most_recent_match_id]
         end
 
       {:error, :rate_limit_met} ->
-        Process.send_after(self(), :check, @check_interval)
-        {:noreply, state, :hibernate}
+        []
     end
   end
 end

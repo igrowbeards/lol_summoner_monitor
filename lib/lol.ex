@@ -4,6 +4,7 @@ defmodule Lol do
   alias Lol.Api
   alias Lol.Region
   alias SummonerMonitor.SummonerWatcher
+  alias SummonerMonitor.SummonersMatchesSupervisor
 
   def summoners_in_recent_matches(summoner_id, region, opts \\ []) do
     count = Keyword.get(opts, :count, 5)
@@ -15,19 +16,18 @@ defmodule Lol do
          initial_summoners <- concurrently_fetch_match_details(match_ids, zone),
          filtered_summoners <- remove_target_from_results(initial_summoners, puuid) do
       if spawn_watchers do
-        # the watechers are designed to sleep for `jitter` ms before they begin their loop
-        # this helps us spread the recurring api calls out a bit and avoid hitting our per second rate limit
         filtered_summoners
         |> Enum.with_index()
-        |> Enum.each(fn {{name, id}, index} ->
-          SummonerWatcher.start_link(%{
+        |> Enum.each(fn {{name, puuid}, index} ->
+          GenServer.start(SummonerWatcher, %{
             summoner_name: name,
-            puuid: id,
+            puuid: puuid,
             zone: zone,
-            # TODO: this probably belongs elsewhere
-            jitter: index * 2000
+            initial_delay: index * 2000
           })
         end)
+
+        # SummonersMatchesSupervisor.start_link(filtered_summoners, zone)
       end
 
       Enum.map(filtered_summoners, fn {name, _} -> name end)
