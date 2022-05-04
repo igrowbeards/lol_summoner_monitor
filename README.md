@@ -32,3 +32,11 @@ Then call the function with a valid summoner name and region:
 ```elixir
 iex> SummonerMonitor.monitor_summoners("MSorenstein", "NA1")
 ```
+
+I've made pretty liberal use of Logger throughout the code base,
+if it's too chatty you can change the level to `:notice` and still catch the
+necessary output. You can do so by editing the config
+or executing the following in your iex session:
+```
+iex> Logger.configure(level: :notice)
+```
