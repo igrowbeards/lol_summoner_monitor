@@ -4,7 +4,7 @@ defmodule SummonerMonitor do
   """
 
   alias Lol.Region
-  alias SummonerMonitor.SummonerWatcher
+  alias SummonerMonitor.SummonerMatchWatcher
 
   @doc """
   Retrieves the summoners a given `summoner_name` has
@@ -31,7 +31,7 @@ defmodule SummonerMonitor do
   end
 
   defp spawn_watcher({{name, puuid}, index}, zone) do
-      GenServer.start(SummonerWatcher, %{
+      GenServer.start(SummonerMatchWatcher, %{
         summoner_name: name,
         puuid: puuid,
         zone: zone,

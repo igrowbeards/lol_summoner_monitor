@@ -1,4 +1,4 @@
-defmodule SummonerMonitor.SummonerWatcher do
+defmodule SummonerMonitor.SummonerMatchWatcher do
   use GenServer
 
   require Logger

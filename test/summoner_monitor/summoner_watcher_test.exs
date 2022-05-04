@@ -1,11 +1,11 @@
-defmodule SummonerMonitor.SummonerWatcherTest do
+defmodule SummonerMonitor.SummonerMatchWatcherTest do
   use ExUnit.Case
   use ExVCR.Mock, adapter: ExVCR.Adapter.Hackney
 
   import ExUnit.CaptureLog
   require Logger
 
-  alias SummonerMonitor.SummonerWatcher
+  alias SummonerMonitor.SummonerMatchWatcher, as: Watcher
 
   setup do
     args = %{
@@ -15,7 +15,7 @@ defmodule SummonerMonitor.SummonerWatcherTest do
       mode: :manual
     }
 
-    {:ok, pid} = start_supervised({SummonerWatcher, args})
+    {:ok, pid} = start_supervised({Watcher, args})
 
     # we want to assert against the logs in this test,
     # but don't want to donk up the log level from the config, whatever it may be
