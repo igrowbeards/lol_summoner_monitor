@@ -12,24 +12,8 @@ defmodule Lol do
     with {:ok, %{"puuid" => puuid}} <- Api.summoner_by_id_in_region(summoner_id, region),
          {:ok, zone} <- Region.to_zone(region),
          {:ok, match_ids} <- Api.recent_matches_for_puuid(puuid, zone, count: count),
-         initial_summoners <- concurrently_fetch_match_details(match_ids, zone),
-         filtered_summoners <- remove_target_from_results(initial_summoners, puuid) do
-      if spawn_watchers do
-        filtered_summoners
-        |> Enum.with_index()
-        |> Enum.each(fn {{name, puuid}, index} ->
-          GenServer.start(SummonerWatcher, %{
-            summoner_name: name,
-            puuid: puuid,
-            zone: zone,
-            initial_delay: index * 2000
-          })
-        end)
-
-        # SummonersMatchesSupervisor.start_link(filtered_summoners, zone)
-      end
-
-      Enum.map(filtered_summoners, fn {name, _} -> name end)
+         initial_summoners <- concurrently_fetch_match_details(match_ids, zone) do
+         remove_target_from_results(initial_summoners, puuid)
     end
   end
 

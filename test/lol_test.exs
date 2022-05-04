@@ -5,62 +5,6 @@ defmodule RiotLolTest do
 
   alias Lol.Api
 
-  test "summoners_in_recent_matches" do
-    use_cassette "recent_summoners" do
-      summoner_id = "jkJO5PAoYMKJGERosZusjt31lYCyKc-Ij71k-js86EBEckpoxDwj1nwBwQ"
-      summoner_name = "ThoseLanesOrFeed"
-      region = "NA1"
-
-      summoners_from_api_call =
-        Lol.summoners_in_recent_matches(summoner_id, region, start_watchers: false)
-
-      expected_summoners = [
-        "T0NSOFDAMAGE",
-        "PhantomThiefJm",
-        "Rin4TheWinTezuka",
-        "cptcornIog",
-        "IIRisk",
-        "igvic",
-        "wheresmyramen",
-        "epicnarlee",
-        "pipisey",
-        "MSorenstein",
-        "Contender Bias",
-        "SBI J",
-        "TopLaneHokage707",
-        "Omness",
-        "P4ndamonster",
-        "ZAkitehook",
-        "Stand Up Kid",
-        "wathoow",
-        "SuperyiyiyiyiX",
-        "TheBigDDuck",
-        "UnstoppableVOLI",
-        "Logang4LIFE",
-        "Ryuuta",
-        "yifeigin",
-        "Mentrius",
-        "Terry Andrews",
-        "VeganWiFi",
-        "Catboy Bargus",
-        " Ricky Španish",
-        "LMSISNOTMSL",
-        "puebl0inru1ns",
-        "qwecwbjkb",
-        "Sabercheetah",
-        "puddy2345",
-        "Dawoon",
-        "Bobeaht",
-        "Bleu Foncé",
-        "Rotane"
-      ]
-
-      refute Enum.member?(summoners_from_api_call, summoner_name)
-
-      assert summoners_from_api_call == expected_summoners
-    end
-  end
-
   test "extract_summoners_from_match" do
     use_cassette "match_details" do
       match_id = "NA1_4295670986"

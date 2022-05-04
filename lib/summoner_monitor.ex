@@ -1,18 +1,28 @@
 defmodule SummonerMonitor do
   @moduledoc """
-  Documentation for `SummonerMonitor`.
+  TODO
   """
 
-  @doc """
-  Hello world.
+  alias Lol.Region
+  alias SummonerMonitor.SummonerWatcher
 
-  ## Examples
+  @doc "todo"
+  def monitor_summoners(summoner_id, region) do
+    summoners = Lol.summoners_in_recent_matches(summoner_id, region)
 
-      iex> SummonerMonitor.hello()
-      :world
+    {:ok, zone} = Region.to_zone(region)
 
-  """
-  def hello do
-    :world
+    summoners
+    |> Enum.with_index()
+    |> Enum.each(fn {{name, puuid}, index} ->
+      GenServer.start(SummonerWatcher, %{
+        summoner_name: name,
+        puuid: puuid,
+        zone: zone,
+        initial_delay: index * 2000
+      })
+    end)
+
+    Enum.map(summoners, fn {name, _} -> name end)
   end
 end
