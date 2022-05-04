@@ -62,10 +62,35 @@ defmodule SummonerMonitor.SummonerWatcherTest do
           end
         end)
 
-      expected_completed_match_id = "NA1_5296379965"
+      expected_completed_match_id = "NA1_0000000006"
 
       assert log =~
                "Summoner #{args.summoner_name} completed match #{expected_completed_match_id}"
+    end
+
+    test "worker handles multiple new matches in a single call", %{setup_args: args} do
+      {_result, log} =
+        with_log(fn ->
+          # initial query
+          use_cassette "recent_matches_initial", custom: true do
+            Process.send(args.worker_name, :check, [])
+            :timer.sleep(200)
+          end
+
+          use_cassette "recent_matches_updated_multi", custom: true do
+            Process.send(args.worker_name, :check, [])
+            :timer.sleep(200)
+          end
+        end)
+
+      expected_completed_match_id_1 = "NA1_0000000007"
+      expected_completed_match_id_2 = "NA1_0000000006"
+
+      assert log =~
+               "Summoner #{args.summoner_name} completed match #{expected_completed_match_id_1}"
+
+      assert log =~
+               "Summoner #{args.summoner_name} completed match #{expected_completed_match_id_2}"
     end
   end
 end

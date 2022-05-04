@@ -38,24 +38,26 @@ defmodule SummonerMonitor.SummonerWatcher do
 
     schedule_shutdown()
 
-    if state.mode == :automatic do
-      state = check_and_update_state(state)
-      schedule_next_check(state)
+    case state.mode do
+      :automatic ->
+        schedule_next_check()
+        new_state = check_and_update_state(state)
+        {:noreply, new_state}
+      :manual ->
+        {:noreply, state}
     end
-
-    {:noreply, state}
   end
 
   defp check_and_update_state(state) do
     new_matches = new_matches_found(state)
     log_new_matches(new_matches, state)
-    state = update_state(state, new_matches)
+    update_state(state, new_matches)
   end
 
   def handle_info(:check, state) do
     Logger.debug("Checking for recent matches for #{state.summoner_name}...")
     state = check_and_update_state(state)
-    if state.mode == :automatic, do: schedule_next_check(state)
+    if state.mode == :automatic, do: schedule_next_check()
 
     {:noreply, state}
   end
@@ -72,7 +74,7 @@ defmodule SummonerMonitor.SummonerWatcher do
   defp update_state(state, new_matches) when is_list(new_matches) do
     %State{
       state
-      | recent_matches: new_matches ++ [state.recent_matches],
+      | recent_matches: new_matches,
         match_check_count: state.match_check_count + 1
     }
   end
@@ -85,23 +87,14 @@ defmodule SummonerMonitor.SummonerWatcher do
     Enum.each(matches, &Logger.notice("Summoner #{state.summoner_name} completed match #{&1}"))
   end
 
-  defp schedule_next_check(state) do
-    Process.send_after(self(), :check, @check_interval)
-  end
+  defp schedule_next_check, do: Process.send_after(self(), :check, @check_interval)
 
-  defp schedule_shutdown do
-    Process.send_after(self(), :done, @runtime)
-  end
+  defp schedule_shutdown, do: Process.send_after(self(), :done, @runtime)
 
   defp new_matches_found(state) do
-    case Api.recent_matches_for_puuid(state.puuid, state.zone, count: 1) do
-      {:ok, [most_recent_match_id]} ->
-        if Enum.member?(state.recent_matches, most_recent_match_id) do
-          []
-        else
-          [most_recent_match_id]
-        end
-
+    case Api.recent_matches_for_puuid(state.puuid, state.zone, count: 5) do
+      {:ok, most_recent_match_ids} ->
+        most_recent_match_ids -- state.recent_matches
       {:error, :rate_limit_met} ->
         []
     end

@@ -4,7 +4,6 @@ defmodule Lol do
   alias Lol.Api
   alias Lol.Region
   alias SummonerMonitor.SummonerWatcher
-  alias SummonerMonitor.SummonersMatchesSupervisor
 
   def summoners_in_recent_matches(summoner_id, region, opts \\ []) do
     count = Keyword.get(opts, :count, 5)
