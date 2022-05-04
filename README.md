@@ -25,8 +25,8 @@ export RIOT_API_KEY=<your_secret_key>
 # run the test suite
 > mix test
 
-# start the server
-> iex -S mix phx.server
+# start the application
+> iex -S mix
 ```
 Then call the function with a valid summoner name and region:
 ```elixir
