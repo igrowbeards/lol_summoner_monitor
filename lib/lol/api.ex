@@ -1,7 +1,9 @@
 defmodule Lol.Api do
   @moduledoc """
   Functions for calling the Riot LOL api
-  Everything is rate limited by the <TODO> 
+  Everything is rate limited by the `RateLimiter` module,
+  according to the settings in config.
+
   Any requests over the limit will return an error response
   and the api will not actually be hit.
   """

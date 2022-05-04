@@ -1,21 +1,34 @@
-# SummonerMonitor
+# LOL Summoner Match Monitor
 
-**TODO: Add description**
+Thanks for looking! Feel free to reach out with any questions.
 
-## Installation
+## Up and Running
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `summoner_monitor` to your list of dependencies in `mix.exs`:
+### Deps
 
-```elixir
-def deps do
-  [
-    {:summoner_monitor, "~> 0.1.0"}
-  ]
-end
+#### Elixir:
+I personally tested against v1.13.4 on OTP 24.3.3, and that's what the mixfile requires but it's pretty likely this will run fine on other versions, so feel free to change it if you feel the need.
+            
+#### Riot API Key
+In order to run the app a Riot Games api key must be set in a system var (or you can override the application config if you prefer).
+
+```bash
+export RIOT_API_KEY=<your_secret_key>
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/summoner_monitor>.
+### Running the Challenge Code
 
+```bash
+# get deps
+> mix deps.get
+
+# run the test suite
+> mix test
+
+# start the server
+> iex -S mix phx.server
+```
+Then call the function with a valid summoner name and region:
+```elixir
+iex> SummonerMonitor.monitor_summoners("MSorenstein", "NA1")
+```
