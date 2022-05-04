@@ -8,7 +8,7 @@
       "method": "get",
       "options": [],
       "request_body": "",
-      "url": "https://NA1.api.riotgames.com/lol/summoner/v4/summoners/jkJO5PAoYMKJGERosZusjt31lYCyKc-Ij71k-js86EBEckpoxDwj1nwBwQ"
+      "url": "https://NA1.api.riotgames.com/lol/summoner/v4/summoners/by-name/ThoseLanesOrFeed"
     },
     "response": {
       "binary": false,

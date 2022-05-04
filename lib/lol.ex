@@ -3,13 +3,11 @@ defmodule Lol do
 
   alias Lol.Api
   alias Lol.Region
-  alias SummonerMonitor.SummonerWatcher
 
   def summoners_in_recent_matches(summoner_id, region, opts \\ []) do
     count = Keyword.get(opts, :count, 5)
-    spawn_watchers = Keyword.get(opts, :spawn_watches, true)
 
-    with {:ok, %{"puuid" => puuid}} <- Api.summoner_by_id_in_region(summoner_id, region),
+    with {:ok, %{"puuid" => puuid}} <- Api.summoner_by_name_in_region(summoner_id, region),
          {:ok, zone} <- Region.to_zone(region),
          {:ok, match_ids} <- Api.recent_matches_for_puuid(puuid, zone, count: count),
          initial_summoners <- concurrently_fetch_match_details(match_ids, zone) do

@@ -19,16 +19,16 @@ defmodule Lol.Api do
     {"X-Riot-Token", Application.get_env(:summoner_monitor, :riot_api_key)}
   ])
 
-  def summoner_by_id_in_region(id, region) do
+  def summoner_by_name_in_region(name, region) do
     if under_rate_limits?() do
-      Logger.debug("querying api for summoner #{id} in #{region}")
+      Logger.debug("querying api for summoner #{name} in #{region}")
 
-      (base_url(region) <> "summoner/v4/summoners/#{id}")
+      (base_url(region) <> "summoner/v4/summoners/by-name/#{name}")
       |> get()
       |> format_response()
     else
       Logger.warn(
-        "over rate limit - attempted to call `summoner_by_id_in_region` with id: #{id}, region: #{region}"
+        "over rate limit - attempted to call `summoner_by_name_in_region` with name: #{name}, region: #{region}"
       )
 
       {:error, :rate_limit_met}

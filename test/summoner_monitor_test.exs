@@ -5,12 +5,11 @@ defmodule SummonerMonitorTest do
 
   test "monitor_summoners" do
     use_cassette "recent_summoners" do
-      summoner_id = "jkJO5PAoYMKJGERosZusjt31lYCyKc-Ij71k-js86EBEckpoxDwj1nwBwQ"
       summoner_name = "ThoseLanesOrFeed"
       region = "NA1"
 
       summoners_from_api_call =
-        SummonerMonitor.monitor_summoners(summoner_id, region)
+        SummonerMonitor.monitor_summoners(summoner_name, region)
 
       expected_summoners = [
         "T0NSOFDAMAGE",
