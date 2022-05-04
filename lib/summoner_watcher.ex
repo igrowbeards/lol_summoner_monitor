@@ -5,9 +5,6 @@ defmodule SummonerMonitor.SummonerWatcher do
 
   alias Lol.Api
 
-  @runtime :timer.hours(1)
-  @check_interval :timer.minutes(1)
-
   defmodule State do
     @moduledoc false
     defstruct [
@@ -17,6 +14,9 @@ defmodule SummonerMonitor.SummonerWatcher do
       recent_matches: [],
       match_check_count: 0,
       initial_delay: 0,
+      # the `mode` determines whether the process will schedule it's own checks
+      # or wait for a signal from outside to run a check against the latest api data.
+      # Basically just makes testing this process a lot easier.
       mode: :automatic
     ]
   end
@@ -24,7 +24,7 @@ defmodule SummonerMonitor.SummonerWatcher do
   ### Client
 
   def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: opts.worker_name)
+    GenServer.start_link(__MODULE__, opts)
   end
 
   ### Server
@@ -33,6 +33,7 @@ defmodule SummonerMonitor.SummonerWatcher do
     {:ok, struct(State, args), {:continue, :initial_delay}}
   end
 
+  # this lets us stagger our startups so as not to blow past our api per second limit
   def handle_continue(:initial_delay, state) do
     :timer.sleep(state.initial_delay)
 
@@ -43,28 +44,33 @@ defmodule SummonerMonitor.SummonerWatcher do
         schedule_next_check()
         new_state = check_and_update_state(state)
         {:noreply, new_state}
+
       :manual ->
         {:noreply, state}
     end
   end
 
-  defp check_and_update_state(state) do
-    new_matches = new_matches_found(state)
-    log_new_matches(new_matches, state)
-    update_state(state, new_matches)
-  end
-
+  # the handler that triggers the work
   def handle_info(:check, state) do
-    Logger.debug("Checking for recent matches for #{state.summoner_name}...")
     state = check_and_update_state(state)
     if state.mode == :automatic, do: schedule_next_check()
 
     {:noreply, state}
   end
 
+  # handles shutting down the process after the runtime has elapsed
   def handle_info(:done, state) do
     Logger.debug("Worker for #{state.summoner_name} is shutting down as scheduled")
     Process.exit(self(), :normal)
+  end
+
+  ### Private
+
+  # calls the api to check for new matches, logs, and returns an updated state
+  defp check_and_update_state(state) do
+    new_matches = new_matches_found(state)
+    log_new_matches(new_matches, state)
+    update_state(state, new_matches)
   end
 
   ### Private
@@ -87,15 +93,27 @@ defmodule SummonerMonitor.SummonerWatcher do
     Enum.each(matches, &Logger.notice("Summoner #{state.summoner_name} completed match #{&1}"))
   end
 
-  defp schedule_next_check, do: Process.send_after(self(), :check, @check_interval)
+  defp schedule_next_check do
+    interval = Application.get_env(:summoner_monitor, :summoner_watcher)[:check_interval]
+    Process.send_after(self(), :check, interval)
+  end
 
-  defp schedule_shutdown, do: Process.send_after(self(), :done, @runtime)
+  defp schedule_shutdown do
+    runtime = Application.get_env(:summoner_monitor, :summoner_watcher)[:runtime]
+    Process.send_after(self(), :done, runtime)
+  end
 
+  # grabs the latest match ids from the lol api,
+  # and diffs them vs the ids stored in the process state
   defp new_matches_found(state) do
+    Logger.debug("Fetching latest matches for #{state.summoner_name}")
+
     case Api.recent_matches_for_puuid(state.puuid, state.zone, count: 5) do
       {:ok, most_recent_match_ids} ->
         most_recent_match_ids -- state.recent_matches
+
       {:error, :rate_limit_met} ->
+        Logger.debug("api limit hit, will catch new ones next go around...")
         []
     end
   end

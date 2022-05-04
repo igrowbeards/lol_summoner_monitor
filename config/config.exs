@@ -9,6 +9,10 @@ config :summoner_monitor,
     long_limit: 200,
     short_period: :timer.seconds(20),
     short_limit: 20
+  ],
+  summoner_watcher: [
+    runtime: :timer.hours(1),
+    check_interval: :timer.minutes(1)
   ]
 
 import_config "#{config_env()}.exs"

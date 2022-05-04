@@ -12,11 +12,10 @@ defmodule SummonerMonitor.SummonerWatcherTest do
       summoner_name: "MSorenstein",
       puuid: "Azkcx_dn8r1ia0XXiEIVdciiR1pEaeeXLpGyIUFxqA0Y1E_K8PVMcXlbUJRUu_rTugvyvNrF8tABqA",
       zone: "americas",
-      worker_name: :test_summoner_worker,
       mode: :manual
     }
 
-    {:ok, _pid} = start_supervised({SummonerWatcher, args})
+    {:ok, pid} = start_supervised({SummonerWatcher, args})
 
     # we want to assert against the logs in this test,
     # but don't want to donk up the log level from the config, whatever it may be
@@ -28,15 +27,18 @@ defmodule SummonerMonitor.SummonerWatcherTest do
       Logger.configure(level: level)
     end)
 
-    %{setup_args: args}
+    %{setup_args: args, worker: pid}
   end
 
   describe "summoner watcher" do
-    test "worker does not log a match completion for it's initial check", %{setup_args: args} do
+    test "worker does not log a match completion for it's initial check", %{
+      setup_args: args,
+      worker: worker
+    } do
       {_result, log} =
         with_log(fn ->
           use_cassette "recent_matches_initial", custom: true do
-            Process.send(args.worker_name, :check, [])
+            Process.send(worker, :check, [])
             :timer.sleep(100)
           end
         end)
@@ -47,17 +49,20 @@ defmodule SummonerMonitor.SummonerWatcherTest do
       refute log =~ "Summoner #{args.summoner_name} completed match"
     end
 
-    test "worker logs new matches that are found during checks", %{setup_args: args} do
+    test "worker logs new matches that are found during checks", %{
+      setup_args: args,
+      worker: worker
+    } do
       {_result, log} =
         with_log(fn ->
           # initial query
           use_cassette "recent_matches_initial", custom: true do
-            Process.send(args.worker_name, :check, [])
+            Process.send(worker, :check, [])
             :timer.sleep(200)
           end
 
           use_cassette "recent_matches_updated", custom: true do
-            Process.send(args.worker_name, :check, [])
+            Process.send(worker, :check, [])
             :timer.sleep(200)
           end
         end)
@@ -68,17 +73,20 @@ defmodule SummonerMonitor.SummonerWatcherTest do
                "Summoner #{args.summoner_name} completed match #{expected_completed_match_id}"
     end
 
-    test "worker handles multiple new matches in a single call", %{setup_args: args} do
+    test "worker handles multiple new matches in a single check", %{
+      setup_args: args,
+      worker: worker
+    } do
       {_result, log} =
         with_log(fn ->
           # initial query
           use_cassette "recent_matches_initial", custom: true do
-            Process.send(args.worker_name, :check, [])
+            Process.send(worker, :check, [])
             :timer.sleep(200)
           end
 
           use_cassette "recent_matches_updated_multi", custom: true do
-            Process.send(args.worker_name, :check, [])
+            Process.send(worker, :check, [])
             :timer.sleep(200)
           end
         end)
