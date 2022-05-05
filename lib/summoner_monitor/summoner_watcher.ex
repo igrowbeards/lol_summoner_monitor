@@ -60,7 +60,7 @@ defmodule SummonerMonitor.SummonerMatchWatcher do
 
   # handles shutting down the process after the runtime has elapsed
   def handle_info(:done, state) do
-    Logger.debug("Worker for #{state.summoner_name} is shutting down as scheduled")
+    Logger.notice("Worker for #{state.summoner_name} is shutting down as scheduled")
     Process.exit(self(), :normal)
   end
 
