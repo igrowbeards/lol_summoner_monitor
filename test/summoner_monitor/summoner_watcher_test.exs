@@ -7,6 +7,11 @@ defmodule SummonerMonitor.SummonerMatchWatcherTest do
 
   alias SummonerMonitor.SummonerMatchWatcher, as: Watcher
 
+  # the time we sleep to make sure the expected
+  # process completes it's action and the log message
+  # is written
+  @log_wait_time 50
+
   setup do
     args = %{
       summoner_name: "MSorenstein",
@@ -27,19 +32,19 @@ defmodule SummonerMonitor.SummonerMatchWatcherTest do
       Logger.configure(level: level)
     end)
 
-    %{setup_args: args, worker: pid}
+    %{setup_args: args, watcher: pid}
   end
 
   describe "summoner watcher" do
-    test "worker does not log a match completion for it's initial check", %{
+    test "watcher does not log a match completion for it's initial check", %{
       setup_args: args,
-      worker: worker
+      watcher: watcher
     } do
       {_result, log} =
         with_log(fn ->
           use_cassette "recent_matches_initial", custom: true do
-            Process.send(worker, :check, [])
-            :timer.sleep(100)
+            Process.send(watcher, :check, [])
+            :timer.sleep(@log_wait_time)
           end
         end)
 
@@ -49,56 +54,101 @@ defmodule SummonerMonitor.SummonerMatchWatcherTest do
       refute log =~ "Summoner #{args.summoner_name} completed match"
     end
 
-    test "worker logs new matches that are found during checks", %{
-      setup_args: args,
-      worker: worker
-    } do
+    test "watcher logs new matches that are found during checks", %{watcher: watcher} do
       {_result, log} =
         with_log(fn ->
           # initial query
           use_cassette "recent_matches_initial", custom: true do
-            Process.send(worker, :check, [])
-            :timer.sleep(200)
+            Process.send(watcher, :check, [])
+            :timer.sleep(@log_wait_time)
           end
 
           use_cassette "recent_matches_updated", custom: true do
-            Process.send(worker, :check, [])
-            :timer.sleep(200)
+            Process.send(watcher, :check, [])
+            :timer.sleep(@log_wait_time)
           end
         end)
 
       expected_completed_match_id = "NA1_0000000006"
 
-      assert log =~
-               "Summoner #{args.summoner_name} completed match #{expected_completed_match_id}"
+      assert log =~ "completed match #{expected_completed_match_id}"
     end
 
-    test "worker handles multiple new matches in a single check", %{
-      setup_args: args,
-      worker: worker
-    } do
+    test "watcher handles multiple new matches in a single check", %{watcher: watcher} do
       {_result, log} =
         with_log(fn ->
           # initial query
           use_cassette "recent_matches_initial", custom: true do
-            Process.send(worker, :check, [])
-            :timer.sleep(200)
+            Process.send(watcher, :check, [])
+            :timer.sleep(@log_wait_time)
           end
 
           use_cassette "recent_matches_updated_multi", custom: true do
-            Process.send(worker, :check, [])
-            :timer.sleep(200)
+            Process.send(watcher, :check, [])
+            :timer.sleep(@log_wait_time)
           end
         end)
 
       expected_completed_match_id_1 = "NA1_0000000007"
       expected_completed_match_id_2 = "NA1_0000000006"
 
-      assert log =~
-               "Summoner #{args.summoner_name} completed match #{expected_completed_match_id_1}"
+      unexpected = ["NA1_0000000005", "NA1_0000000004", "NA1_0000000003", "NA1_0000000002", "NA1_0000000001"]
 
-      assert log =~
-               "Summoner #{args.summoner_name} completed match #{expected_completed_match_id_2}"
+      assert log =~ "completed match #{expected_completed_match_id_1}"
+
+      assert log =~ "completed match #{expected_completed_match_id_2}"
+
+      for unexpected_mess_id <- unexpected do
+        refute log =~ "completed match #{unexpected_mess_id}"
+      end
+    end
+
+    test "watcher mainains an accurate match list through multiple checks", %{
+      setup_args: args,
+      watcher: watcher
+    } do
+
+      {_result, log} = with_log(fn ->
+        # initial query
+        use_cassette "recent_matches_initial", custom: true do
+          Process.send(watcher, :check, [])
+          :timer.sleep(@log_wait_time)
+        end
+      end)
+
+      refute log =~ "Summoner #{args.summoner_name} completed match"
+
+      {_result, log} = with_log(fn ->
+        use_cassette "recent_matches_updated", custom: true do
+          Process.send(watcher, :check, [])
+          :timer.sleep(@log_wait_time)
+        end
+      end)
+
+      expected_completed_match_id_1 = "NA1_0000000006"
+
+      assert log =~ "completed match #{expected_completed_match_id_1}"
+
+      unexpected_match_id = "NA1_0000000005"
+
+      refute log =~ "completed match #{unexpected_match_id}"
+
+      {_result, log} = with_log(fn ->
+        use_cassette "recent_matches_updated_multi", custom: true do
+          Process.send(watcher, :check, [])
+          :timer.sleep(@log_wait_time)
+        end
+      end)
+
+      expected_completed_match_id_2 = "NA1_0000000007"
+
+      assert log =~ "completed match #{expected_completed_match_id_2}"
+
+      unexpected = ["NA1_0000000006", "NA1_0000000005", "NA1_0000000004", "NA1_0000000003", "NA1_0000000002", "NA1_0000000001"]
+
+      for unexpected_mess_id <- unexpected do
+        refute log =~ "completed match #{unexpected_mess_id}"
+      end
     end
   end
 end

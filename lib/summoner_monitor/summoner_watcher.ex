@@ -85,12 +85,11 @@ defmodule SummonerMonitor.SummonerMatchWatcher do
     }
   end
 
-  defp log_new_matches([], _), do: nil
-
   defp log_new_matches(_, %{match_check_count: 0}), do: nil
 
   defp log_new_matches(matches, state) when is_list(matches) do
-    Enum.each(matches, &Logger.notice("Summoner #{state.summoner_name} completed match #{&1}"))
+    matches_to_alert = matches -- state.recent_matches
+    Enum.each(matches_to_alert, &Logger.notice("Summoner #{state.summoner_name} completed match #{&1}"))
   end
 
   defp schedule_next_check do
@@ -110,11 +109,11 @@ defmodule SummonerMonitor.SummonerMatchWatcher do
 
     case Api.recent_matches_for_puuid(state.puuid, state.zone, count: 5) do
       {:ok, most_recent_match_ids} ->
-        most_recent_match_ids -- state.recent_matches
+        most_recent_match_ids
 
       {:error, :rate_limit_met} ->
         Logger.debug("api limit hit, will catch new ones next go around...")
-        []
+        state.recent_matches
     end
   end
 end
